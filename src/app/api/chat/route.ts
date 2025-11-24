@@ -53,14 +53,18 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       console.error('Model Lab API error:', response.status, errorData)
-      throw new Error(`API request failed with status ${response.status}`)
+      console.error('Response text:', await response.text().catch(() => 'Unable to read'))
+      throw new Error(`API request failed with status ${response.status}: ${JSON.stringify(errorData)}`)
     }
 
     const data = await response.json()
-    const text = data.choices?.[0]?.message?.content
+    console.log('API Response:', JSON.stringify(data, null, 2))
+    
+    const text = data.choices?.[0]?.message?.content || data.output || data.response
 
     // Make sure we actually have text
     if (!text || text.trim() === '') {
+      console.error('Full API response:', data)
       throw new Error('Empty response from model')
     }
 
