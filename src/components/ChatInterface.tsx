@@ -235,7 +235,7 @@ export default function ChatInterface() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full">
         {/* Header */}
-        <div className="bg-[#212121] border-b border-gray-700 p-3 flex items-center gap-3">
+        <div className="bg-[#212121] p-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 hover:bg-[#2A2A2A] rounded-lg text-gray-400 transition-colors"
