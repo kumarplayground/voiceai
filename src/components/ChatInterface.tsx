@@ -393,7 +393,7 @@ export default function ChatInterface() {
             : 'Sorry, I encountered an error. Please try again.',
           isUser: false,
           timestamp: new Date(),
-          type: mode
+          type: mode === 'image' ? 'image' : 'text'
         }
         setMessages(prev => [...prev, errorMessage])
       }
