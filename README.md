@@ -4,18 +4,29 @@ A modern, responsive AI chat assistant built with Next.js and powered by Google'
 
 ## Features
 
-- 🤖 **AI-Powered Conversations**: Integrated with Google Gemini API for intelligent responses
+- 🤖 **AI-Powered Conversations**: Integrated with GPT OSS 120b model for intelligent responses
+- 🎨 **Text-to-Image Generation**: Create stunning images using Google/NanoBanana Pro model
+- 🎤 **Voice Input**: Speak your messages using Web Speech API
+- 🔊 **Text-to-Speech**: AI responses are read aloud using ModelsLab TTS
+- 🎙️ **Live Conversation Mode**: ChatGPT-style hands-free voice conversation
 - 💬 **Real-time Chat Interface**: Modern, responsive chat UI with message history
+- 🔄 **Mode Toggle**: Seamlessly switch between chat and image generation modes
 - ⚡ **Fast & Efficient**: Built with Next.js for optimal performance
 - 🎨 **Modern Design**: Clean, intuitive interface with Tailwind CSS
 - 📱 **Responsive**: Works seamlessly on desktop and mobile devices
+- 💾 **Chat History**: Automatically saves conversations to local storage
 - 🔒 **Secure**: Environment variable configuration for API keys
 
 ## Tech Stack
 
 - **Frontend**: Next.js 15, React 18, TypeScript
 - **Styling**: Tailwind CSS
-- **AI Integration**: Google Generative AI (Gemini API)
+- **AI Integration**: 
+  - Text Chat: GPT OSS 120b via ModelsLab API
+  - Image Generation: Google/NanoBanana Pro via ModelsLab API
+  - Text-to-Speech: ModelsLab TTS API with multiple voice options
+  - Speech Recognition: Web Speech API (browser-native)
+- **Markdown Rendering**: React Markdown with GitHub Flavored Markdown support
 - **Development**: ESLint, PostCSS, Autoprefixer
 
 ## Prerequisites
@@ -23,7 +34,7 @@ A modern, responsive AI chat assistant built with Next.js and powered by Google'
 Before running this application, make sure you have:
 
 - Node.js 18+ installed
-- A Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
+- A ModelsLab API key ([Get one here](https://modelslab.com/))
 
 ## Installation
 
@@ -39,9 +50,9 @@ Before running this application, make sure you have:
 
 3. **Set up environment variables**:
    - Copy the `.env.local` file or create it if it doesn't exist
-   - Add your Gemini API key:
+   - Add your ModelsLab API key:
    ```env
-   GEMINI_API_KEY=your_actual_gemini_api_key_here
+   MODEL_LAB_API_KEY=your_modelslab_api_key_here
    ```
 
 ## Usage
@@ -99,21 +110,32 @@ ai_assistant/
 
 ## How It Works
 
+### Chat Mode
 1. **User Interface**: The chat interface is built with React components and styled with Tailwind CSS
 2. **Message Handling**: User messages are sent to the `/api/chat` endpoint
-3. **AI Processing**: The API route uses the Gemini API to generate responses
-4. **Real-time Updates**: Messages are displayed in real-time with loading indicators
+3. **AI Processing**: The API route uses ModelsLab's GPT OSS 120b model to generate responses
+4. **Real-time Updates**: Messages are displayed in real-time with loading indicators and markdown formatting
+
+### Image Generation Mode
+1. **User Input**: Users describe the image they want to create
+2. **API Request**: The prompt is sent to the `/api/generate-image` endpoint
+3. **Image Generation**: ModelsLab's Google/NanoBanana Pro model generates the image
+4. **Display**: The generated image is displayed inline with download/open options
 
 ## API Endpoints
 
 ### POST `/api/chat`
 
-Sends a message to the Gemini AI and returns a response.
+Sends a message to the GPT OSS 120b AI model and returns a response.
 
 **Request Body:**
 ```json
 {
-  "message": "Your question here"
+  "message": "Your question here",
+  "history": [
+    { "role": "user", "content": "Previous message" },
+    { "role": "assistant", "content": "Previous response" }
+  ]
 }
 ```
 
@@ -124,11 +146,31 @@ Sends a message to the Gemini AI and returns a response.
 }
 ```
 
+### POST `/api/generate-image`
+
+Generates an image from a text description using Google/NanoBanana Pro.
+
+**Request Body:**
+```json
+{
+  "prompt": "A serene mountain landscape at sunset"
+}
+```
+
+**Response:**
+```json
+{
+  "imageUrl": "https://...",
+  "status": "success",
+  "message": "Image generated successfully"
+}
+```
+
 ## Configuration
 
 ### Environment Variables
 
-- `GEMINI_API_KEY`: Your Google Gemini API key (required)
+- `MODEL_LAB_API_KEY`: Your ModelsLab API key (required for both chat and image generation)
 
 ### Customization
 
@@ -142,15 +184,20 @@ You can customize the application by:
 
 ### Common Issues
 
-1. **"Gemini API key not configured"**
-   - Ensure your `.env.local` file contains a valid `GEMINI_API_KEY`
+1. **"Model Lab API key not configured"**
+   - Ensure your `.env.local` file contains a valid `MODEL_LAB_API_KEY`
    - Restart the development server after adding the key
 
-2. **Build errors related to TypeScript**
+2. **Image generation takes too long**
+   - Image generation typically takes 15-30 seconds
+   - Check your internet connection
+   - Verify your ModelsLab API key has sufficient credits
+
+3. **Build errors related to TypeScript**
    - Run `npm run lint` to check for code issues
    - Ensure all dependencies are installed with `npm install`
 
-3. **Port already in use**
+4. **Port already in use**
    - The application will automatically try the next available port
    - You can manually specify a port: `npm run dev -- -p 3002`
 
@@ -169,7 +216,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 For issues and questions:
 1. Check the troubleshooting section above
-2. Review the Google Gemini API documentation
+2. Review the ModelsLab API documentation at https://modelslab.com/docs
 3. Check Next.js documentation for framework-related issues
 
 ---

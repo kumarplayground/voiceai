@@ -1,27 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
   const requestBody = await request.json()
-  const { message, history = [] } = requestBody
+  const { message, history = [], stream = true } = requestBody
   
   try {
     if (!message) {
-      return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: 'Message is required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
     const apiKey = process.env.MODEL_LAB_API_KEY
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Model Lab API key not configured' },
-        { status: 500 }
+      return new Response(
+        JSON.stringify({ error: 'Model Lab API key not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
     // Call Model Lab API with GPT OSS 120b model
-    const systemInstruction = "You are my personal learning tutor. Explain every topic to me like a close friend—simple, clear, and in a relaxed tone. Break big concepts into small steps. Always give an easy everyday-life example so I can understand quickly. If I ask anything difficult, simplify it as if you're teaching a beginner. Check if I understood, and then guide me to the next step. Use relevant emojis naturally throughout your responses to make them more engaging and friendly (like 💡 for ideas, ✨ for highlights, 🎯 for key points, etc.). Be concise and to the point. Use headers and lists to organize information clearly. Maintain a warm and enthusiastic tone while keeping a professional and formal approach. Make learning exciting and accessible!";
+    const systemInstruction = "You are a friendly tutor. Keep responses concise (2-3 sentences max unless asked for detail). Use simple language with everyday examples. Add relevant emojis. Be warm, clear, and direct.";
     
     // Build messages array with conversation history
     const messages = [
@@ -45,38 +45,108 @@ export async function POST(request: NextRequest) {
         key: apiKey,
         model_id: 'gpt-oss-120b',
         messages: messages,
-        max_tokens: 2000,
-        temperature: 0.7
+        max_tokens: 1500,      // Reduced from 2000 for faster completion
+        temperature: 0.6,      // Reduced from 0.7 for more focused responses
+        stream: stream
       })
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       console.error('Model Lab API error:', response.status, errorData)
-      console.error('Response text:', await response.text().catch(() => 'Unable to read'))
-      throw new Error(`API request failed with status ${response.status}: ${JSON.stringify(errorData)}`)
+      
+      // If streaming fails, try non-streaming
+      if (stream) {
+        console.log('Streaming failed, falling back to non-streaming mode')
+        return POST(request) // Retry with stream disabled
+      }
+      
+      throw new Error(`API request failed with status ${response.status}`)
     }
 
+    // Check if response is actually streamable
+    const contentType = response.headers.get('content-type')
+    const isStreamResponse = contentType?.includes('text/event-stream') || contentType?.includes('application/x-ndjson')
+
+    // If streaming is enabled and response supports it
+    if (stream && response.body && isStreamResponse) {
+      const encoder = new TextEncoder()
+      const decoder = new TextDecoder()
+
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          const reader = response.body!.getReader()
+          let buffer = ''
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              
+              if (done) {
+                if (buffer.trim()) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+                }
+                controller.close()
+                break
+              }
+
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split('\n')
+              buffer = lines.pop() || ''
+
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (!trimmed || trimmed === 'data: [DONE]') continue
+                
+                if (trimmed.startsWith('data: ')) {
+                  try {
+                    const jsonStr = trimmed.slice(6)
+                    const parsed = JSON.parse(jsonStr)
+                    const content = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content
+                    
+                    if (content) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`))
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse SSE line:', trimmed)
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Stream reading error:', error)
+            controller.error(error)
+          }
+        }
+      })
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      })
+    }
+
+    // Fallback to non-streaming
     const data = await response.json()
-    console.log('API Response:', JSON.stringify(data, null, 2))
-    
     const text = data.choices?.[0]?.message?.content || data.output || data.response
 
-    // Make sure we actually have text
     if (!text || text.trim() === '') {
-      console.error('Full API response:', data)
       throw new Error('Empty response from model')
     }
 
-    return NextResponse.json({ response: text })
+    return new Response(
+      JSON.stringify({ response: text }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
   } catch (error) {
     console.error('Error calling Model Lab API:', error)
-    console.error('API Key exists:', !!process.env.MODEL_LAB_API_KEY)
-    console.error('Message received:', message)
     
-    return NextResponse.json(
-      { error: 'Failed to generate response from GPT OSS 120b model' },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: 'Failed to generate response from GPT OSS 120b model' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
 }
